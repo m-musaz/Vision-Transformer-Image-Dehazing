@@ -90,15 +90,15 @@ class PairLoader(Dataset):
 		img_name = self.img_names[idx]
 		source_img = read_img(os.path.join(self.root_dir, 'hazy', img_name)) * 2 - 1
 		target_img = read_img(os.path.join(self.root_dir, 'GT', img_name)) * 2 - 1
+
+		# Apply AHE to source and target images
+		source_img = apply_ahe(source_img)
 		
 		if self.mode == 'train':
 			[source_img, target_img] = augment([source_img, target_img], self.size, self.edge_decay, self.only_h_flip)
 
 		if self.mode == 'valid':
 			[source_img, target_img] = align([source_img, target_img], self.size)
-
-		# Apply AHE to source and target images
-		source_img = apply_ahe(source_img)
 
 		return {'source': hwc_to_chw(source_img), 'target': hwc_to_chw(target_img), 'filename': img_name}
 
