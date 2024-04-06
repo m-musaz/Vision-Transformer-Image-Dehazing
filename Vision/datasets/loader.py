@@ -9,17 +9,18 @@ from skimage import exposure
 
 
 def apply_ahe(img):
-    # Convert image to uint8
-    img_uint8 = ((img + 1) * 127.5).astype(np.uint8)
+    # Convert image to float in range [0, 1]
+    img_float = img.astype(np.float32) / 255.0
 
     # Apply AHE to each channel separately
-    for i in range(img_uint8.shape[2]):
-        img_uint8[:, :, i] = exposure.equalize_adapthist(img_uint8[:, :, i], clip_limit=0.03)
+    img_ahe = np.zeros_like(img_float)
+    for i in range(img_float.shape[2]):
+        img_ahe[:, :, i] = exposure.equalize_adapthist(img_float[:, :, i], clip_limit=0.03)
 
     # Convert image back to the original data type
-    img = (img_uint8 / 127.5 - 1).astype(img.dtype)
+    img_uint8 = (img_ahe * 255.0).astype(img.dtype)
 
-    return img
+    return img_uint8
 
 def augment(imgs=[], size=256, edge_decay=0., only_h_flip=False):
 	H, W, _ = imgs[0].shape
