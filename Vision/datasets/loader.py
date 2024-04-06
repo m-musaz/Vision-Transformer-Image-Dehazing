@@ -16,8 +16,8 @@ def apply_ahe(img):
     for i in range(img_uint8.shape[2]):
         img_uint8[:, :, i] = exposure.equalize_adapthist(img_uint8[:, :, i], clip_limit=0.03)
 
-    # Convert image back to range [-1, 1]
-    img = (img_uint8 / 127.5) - 1
+    # Convert image back to the original data type
+    img = (img_uint8 / 127.5 - 1).astype(img.dtype)
 
     return img
 
@@ -98,7 +98,6 @@ class PairLoader(Dataset):
 
 		# Apply AHE to source and target images
 		source_img = apply_ahe(source_img)
-		target_img = apply_ahe(target_img)
 
 		return {'source': hwc_to_chw(source_img), 'target': hwc_to_chw(target_img), 'filename': img_name}
 
