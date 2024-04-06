@@ -18,7 +18,7 @@ def apply_ahe(img):
         img_ahe[:, :, i] = exposure.equalize_adapthist(img_float[:, :, i], clip_limit=0.03)
 
     # Convert image back to the original data type
-    img_uint8 = (img_ahe * 255.0).astype(img.dtype)
+    img_uint8 = (img_ahe).astype(img.dtype)
 
     return img_uint8
 
