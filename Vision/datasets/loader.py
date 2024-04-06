@@ -84,6 +84,18 @@ class PairLoader(Dataset):
 
 		return {'source': hwc_to_chw(source_img), 'target': hwc_to_chw(target_img), 'filename': img_name}
 
+def apply_ahe(img):
+    # Convert image to uint8
+    img_uint8 = ((img + 1) * 127.5).astype(np.uint8)
+
+    # Apply AHE to each channel separately
+    for i in range(img_uint8.shape[2]):
+        img_uint8[:, :, i] = exposure.equalize_adapthist(img_uint8[:, :, i], clip_limit=0.03)
+
+    # Convert image back to range [-1, 1]
+    img = (img_uint8 / 127.5) - 1
+
+    return img
 
 class SingleLoader(Dataset):
 	def __init__(self, root_dir):
@@ -102,18 +114,7 @@ class SingleLoader(Dataset):
 		img_name = self.img_names[idx]
 		img = read_img(os.path.join(self.root_dir, img_name)) * 2 - 1
 
+		# Apply AHE to the image
+		img = apply_ahe(img)
+
 		return {'img': hwc_to_chw(img), 'filename': img_name}
-
-
-def apply_ahe(img):
-    # Convert image to uint8
-    img_uint8 = ((img + 1) * 127.5).astype(np.uint8)
-
-    # Apply AHE to each channel separately
-    for i in range(img_uint8.shape[2]):
-        img_uint8[:, :, i] = exposure.equalize_adapthist(img_uint8[:, :, i], clip_limit=0.03)
-
-    # Convert image back to range [-1, 1]
-    img = (img_uint8 / 127.5) - 1
-
-    return img
