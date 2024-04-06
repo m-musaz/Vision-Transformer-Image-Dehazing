@@ -5,7 +5,7 @@ import cv2
 
 from torch.utils.data import Dataset
 from utils import hwc_to_chw, read_img
-
+from skimage import exposure
 
 def augment(imgs=[], size=256, edge_decay=0., only_h_flip=False):
 	H, W, _ = imgs[0].shape
@@ -103,3 +103,17 @@ class SingleLoader(Dataset):
 		img = read_img(os.path.join(self.root_dir, img_name)) * 2 - 1
 
 		return {'img': hwc_to_chw(img), 'filename': img_name}
+
+
+def apply_ahe(img):
+    # Convert image to uint8
+    img_uint8 = ((img + 1) * 127.5).astype(np.uint8)
+
+    # Apply AHE to each channel separately
+    for i in range(img_uint8.shape[2]):
+        img_uint8[:, :, i] = exposure.equalize_adapthist(img_uint8[:, :, i], clip_limit=0.03)
+
+    # Convert image back to range [-1, 1]
+    img = (img_uint8 / 127.5) - 1
+
+    return img
