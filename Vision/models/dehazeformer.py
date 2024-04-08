@@ -548,7 +548,8 @@ class DehazeFormer(nn.Module):
 		x = K * x_adjusted - B + x_adjusted
 
 		x = x[:, :, :H, :W]
-		x = F.interpolate(x, size=(64, 64), mode='bilinear', align_corners=False)
+		x = F.interpolate(x, size=(256, 256), mode='bilinear', align_corners=False)
+		print("final size",x.shape)
 		
 		return x
 
