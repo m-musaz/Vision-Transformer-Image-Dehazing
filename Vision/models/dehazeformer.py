@@ -549,7 +549,7 @@ class DehazeFormer(nn.Module):
 
 		x = x[:, :, :H, :W]
 		x = F.interpolate(x, size=(256, 256), mode='bilinear', align_corners=False)
-		print("final size",x.shape)
+		# print("final size",x.shape)
 		
 		return x
 
