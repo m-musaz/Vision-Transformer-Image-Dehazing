@@ -30,7 +30,7 @@ def apply_clahe(img):
     r, g, b = cv2.split(img)
     
     # Create a CLAHE object (Clip Limited Adaptive Histogram Equalization)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     
     # Apply CLAHE to each channel separately
     r_clahe = clahe.apply(r)
