@@ -448,7 +448,7 @@ class DehazeFormer(nn.Module):
 
 		# split image into non-overlapping patches
 		self.patch_embed = PatchEmbed(
-			patch_size=1, in_chans=8, embed_dim=embed_dims[0], kernel_size=3)
+			patch_size=1, in_chans=16, embed_dim=embed_dims[0], kernel_size=3)
 
 		# backbone
 		self.layer1 = BasicLayer(network_depth=sum(depths), dim=embed_dims[0], depth=depths[0],
