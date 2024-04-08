@@ -24,21 +24,24 @@ def apply_ahe(img):
 
 def apply_clahe(img):
 
-    img = img * 255.0
-    img = img.astype(np.uint8)
-    
-    r, g, b = cv2.split(img)
+    # img = img * 255.0
+    # img = img.astype(np.uint8)
+    image_8bit = cv2.normalize(img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+
+    img_LAB = cv2.cvtColor(image_8bit, cv2.COLOR_BGR2Lab)
+
+    l, a, b = cv2.split(img_LAB)
     
     # Create a CLAHE object (Clip Limited Adaptive Histogram Equalization)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     
     # Apply CLAHE to each channel separately
-    r_clahe = clahe.apply(r)
-    g_clahe = clahe.apply(g)
-    b_clahe = clahe.apply(b)
+    l_clahe = clahe.apply(l)
     
     # Merge the CLAHE enhanced channels
-    img_clahe = cv2.merge((r_clahe, g_clahe, b_clahe))
+    img_clahe = cv2.merge((l_clahe, a, b))
+
+    img_clahe = cv2.cvtColor(img_clahe, cv2.COLOR_Lab2BGR)
 
     img_clahe = img_clahe.astype(np.float32) / 255.0
     
