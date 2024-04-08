@@ -47,8 +47,8 @@ class CustomCNNFeatureExtractor(nn.Module):
         self.conv3 = nn.Conv2d(64, 32, kernel_size=3, stride=2, padding=1) # Downsample here
         self.bn3 = nn.BatchNorm2d(32)
 
-        self.conv4 = nn.Conv2d(32, 8, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(8)
+        self.conv4 = nn.Conv2d(32, 16, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(16)
 
     def forward(self, x):
         x = self.relu(self.bn1(self.conv1(x)))
