@@ -5,7 +5,57 @@ import math
 import numpy as np
 from torch.nn.init import _calculate_fan_in_and_fan_out
 from timm.models.layers import to_2tuple, trunc_normal_
+from torchvision.models import resnet18, ResNet18_Weights
 
+class CustomizedCNNFeatureExtractor(nn.Module):
+    def __init__(self, pretrained=True, output_channels=256):
+        super(CustomizedCNNFeatureExtractor, self).__init__()
+        # Load a pre-trained ResNet-18 model
+        if pretrained:
+            weights = ResNet18_Weights.IMAGENET1K_V1
+            self.resnet = resnet18(weights=weights)
+        else:
+            self.resnet = resnet18(weights=None)
+        
+        # Remove the fully connected layer and global average pooling
+        self.features = nn.Sequential(*list(self.resnet.children())[:-2])  # Using an earlier cut-off
+        
+        # Optionally add a custom convolutional layer to adjust the number of output channels
+        # Assuming you choose to take the output from an intermediate layer that has more channels
+        self.adjust_channels = nn.Conv2d(in_channels=512, out_channels=output_channels, kernel_size=1)  # Adjust in_channels based on the layer you're cutting off at
+        
+        # Adjusting the stride or using additional pooling could help preserve spatial dimensions
+        self.adaptive_pool = nn.AdaptiveAvgPool2d((32, 32))  # You can specify the output size you want for more control
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.adjust_channels(x)  # Adjust channel dimensions
+        x = self.adaptive_pool(x)  # Optionally adjust spatial dimensions
+        return x
+	
+
+class CustomCNNFeatureExtractor(nn.Module):
+    def __init__(self):
+        super(CustomCNNFeatureExtractor, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+
+        self.conv3 = nn.Conv2d(64, 32, kernel_size=3, stride=2, padding=1) # Downsample here
+        self.bn3 = nn.BatchNorm2d(32)
+
+        self.conv4 = nn.Conv2d(32, 8, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(8)
+
+    def forward(self, x):
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.relu(self.bn3(self.conv3(x))) # Downsample
+        x = self.relu(self.bn4(self.conv4(x)))
+        return x
 
 class RLN(nn.Module):
 	r"""Revised LayerNorm"""
@@ -387,6 +437,10 @@ class DehazeFormer(nn.Module):
 				 norm_layer=[RLN, RLN, RLN, RLN, RLN]):
 		super(DehazeFormer, self).__init__()
 
+		# Initialize the CNN feature extractor
+		self.cnn_extractor = CustomCNNFeatureExtractor() #CustomizedCNNFeatureExtractor() #CNNFeatureExtractor(pretrained=True)
+		self.channel_adjustment_layer = nn.Conv2d(in_channels=8, out_channels=3, kernel_size=1)
+
 		# setting
 		self.patch_size = 4
 		self.window_size = window_size
@@ -483,11 +537,19 @@ class DehazeFormer(nn.Module):
 		H, W = x.shape[2:]
 		x = self.check_image_size(x)
 
+		x = self.cnn_extractor(x)
+
 		feat = self.forward_features(x)
 		K, B = torch.split(feat, (1, 3), dim=1)
 
-		x = K * x - B + x
+		x_adjusted = x.to(dtype=torch.float32)  # Ensure x is float32
+		x_adjusted = self.channel_adjustment_layer(x_adjusted)
+
+		x = K * x_adjusted - B + x_adjusted
+
 		x = x[:, :, :H, :W]
+		x = F.interpolate(x, size=(64, 64), mode='bilinear', align_corners=False)
+		
 		return x
 
 
