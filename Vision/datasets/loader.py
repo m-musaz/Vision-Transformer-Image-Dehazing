@@ -117,6 +117,7 @@ class PairLoader(Dataset):
 		target_img = read_img(os.path.join(self.root_dir, 'GT', img_name)) * 2 - 1
 
 		# Apply AHE to source and target images
+		# source_img = apply_clahe(source_img)
 		source_img = source_img
 		
 		if self.mode == 'train':
@@ -145,6 +146,7 @@ class SingleLoader(Dataset):
 		img = read_img(os.path.join(self.root_dir, img_name)) * 2 - 1
 
 		# Apply AHE to the image
-		img = img
+		# img = img
+		img = apply_clahe(img)
 
 		return {'img': hwc_to_chw(img), 'filename': img_name}
