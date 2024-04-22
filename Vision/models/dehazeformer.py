@@ -573,6 +573,7 @@ class DehazeFormer(nn.Module):
 		x = self.layer3(x)
 		x = self.patch_split1(x)
 		print("Third",x.shape)
+		print("Third skip2skip2 shape",self.skip2(skip2).shape)
 		x = self.fusion1([x, self.skip2(skip2)]) + x
 		x = self.layer4(x)
 		x = self.patch_split2(x)
