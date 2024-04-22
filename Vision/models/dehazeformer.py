@@ -398,47 +398,53 @@ class BasicLayer(nn.Module):
 
 
 # Encoder decoder 2
+	# patch_size=1, in_chans=in_chans, embed_dim=embed_dims[0], kernel_size=3
 class PatchEmbed(nn.Module):
-    def __init__(self, patch_size, num_patches, embedding_dim):
-        super(PatchEmbed, self).__init__()
-        self.patch_size = patch_size
-        self.num_patches = num_patches
-        self.embedding_dim = embedding_dim
+	def __init__(self, patch_size=4, in_chans=3, embed_dim=96, kernel_size=None):
+		super(PatchEmbed, self).__init__()
+		self.patch_size = patch_size
+		self.embed_dim = embed_dim
+		
+		if kernel_size == None:
+			kernel_size = patch_size
         
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=embedding_dim, kernel_size=patch_size, stride=patch_size)
-        self.conv2 = nn.Conv2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
-        self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
+		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
+		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=(kernel_size-patch_size+1)//2, padding_mode='reflect')
+		self.conv3 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=(kernel_size-patch_size+1)//2, padding_mode='reflect')
+		self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
 
-    def forward(self, inputs):
-        x = self.conv1(inputs)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.conv3(x)
-        x = F.relu(x)
-        x = self.pooling(x)
-        return x
-
+	def forward(self, inputs):
+		x = self.conv1(inputs)
+		x = F.relu(x)
+		x = self.conv2(x)
+		x = F.relu(x)
+		x = self.conv3(x)
+		x = F.relu(x)
+		x = self.pooling(x)
+		return x
+# patch_size=1, out_chans=out_chans, embed_dim=embed_dims[4], kernel_size=3
 class PatchUnEmbed(nn.Module):
-    def __init__(self, embedding_dim):
-        super(PatchUnEmbed, self).__init__()
-        self.embedding_dim = embedding_dim
-        
-        self.upsampling = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        self.deconv1 = nn.ConvTranspose2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
-        self.deconv2 = nn.ConvTranspose2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
-        self.deconv3 = nn.ConvTranspose2d(in_channels=embedding_dim, out_channels=3, kernel_size=4, stride=4)
+	def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
+		super(PatchUnEmbed, self).__init__()
+		self.embed_dim = embed_dim
 
-    def forward(self, inputs):
-        x = self.upsampling(inputs)
-        x = self.deconv1(x)
-        x = torch.relu(x)
-        x = self.deconv2(x)
-        x = torch.relu(x)
-        x = self.deconv3(x)
-        x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
-        return x
+		if kernel_size is None:
+			kernel_size = 1
+		
+		self.upsampling = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+		self.deconv1 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=kernel_size//2, padding_mode='reflect')
+		self.deconv2 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=kernel_size//2, padding_mode='reflect')
+		self.deconv3 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=out_chans*patch_size**2, kernel_size=4, stride=4)
+
+	def forward(self, inputs):
+		x = self.upsampling(inputs)
+		x = self.deconv1(x)
+		x = torch.relu(x)
+		x = self.deconv2(x)
+		x = torch.relu(x)
+		x = self.deconv3(x)
+		x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
+		return x
 
 
 class SKFusion(nn.Module):
