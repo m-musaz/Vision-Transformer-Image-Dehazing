@@ -309,41 +309,136 @@ class BasicLayer(nn.Module):
 		return x
 
 
+# class PatchEmbed(nn.Module):
+# 	def __init__(self, patch_size=4, in_chans=3, embed_dim=96, kernel_size=None):
+# 		super().__init__()
+# 		self.in_chans = in_chans
+# 		self.embed_dim = embed_dim
+
+# 		if kernel_size is None:
+# 			kernel_size = patch_size
+
+# 		self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=kernel_size, stride=patch_size,
+# 							  padding=(kernel_size-patch_size+1)//2, padding_mode='reflect')
+
+# 	def forward(self, x):
+# 		x = self.proj(x)
+# 		return x
+
+# Encoder Decoder 1
+# class PatchEmbed(nn.Module):
+# 	def __init__(self, in_channels=3, out_channels=96, patch_size=4, stride=2):
+# 		super().__init__()
+# 		self.patch_size = patch_size
+# 		self.stride = stride
+# 		self.kernel_size = 4
+		
+# 		self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=self.kernel_size, stride=stride, padding=(self.kernel_size-patch_size+1)//2, padding_mode='reflect')
+# 		self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=self.kernel_size, stride=1, padding=(self.kernel_size-patch_size+1)//2, padding_mode='reflect')
+# 		self.relu = nn.ReLU(inplace=True)
+# 		self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+# 	def forward(self, x):
+# 		# Apply convolution and activation
+# 		x = self.conv1(x)
+# 		x = self.relu(x)
+		
+# 		# Apply another convolution and activation
+# 		x = self.conv2(x)
+# 		x = self.relu(x)
+		
+# 		# Apply pooling
+# 		x = self.pool(x)
+        
+# 		return x
+	
+# class DecoderBlock(nn.Module):
+#     def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1):
+#         super().__init__()
+#         self.conv_transpose = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, output_padding=output_padding)
+#         self.relu = nn.ReLU(inplace=True)
+
+#     def forward(self, x):
+#         x = self.conv_transpose(x)
+#         x = self.relu(x)
+#         return x
+
+# class PatchUnEmbed(nn.Module):
+#     def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
+#         super().__init__()
+#         self.decoder = nn.Sequential(
+#             DecoderBlock(embed_dim, 128, stride=2, padding=1, output_padding=1),
+#             DecoderBlock(128, 64, stride=2, padding=1, output_padding=1),
+#             DecoderBlock(64, 32, stride=2, padding=1, output_padding=1),
+#             DecoderBlock(32, out_chans, stride=2, padding=1, output_padding=1)
+#         )
+
+#     def forward(self, x):
+#         return self.decoder(x)
+	
+# class PatchUnEmbed(nn.Module):
+# 	def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
+# 		super().__init__()
+# 		self.out_chans = out_chans
+# 		self.embed_dim = embed_dim
+
+# 		if kernel_size is None:
+# 			kernel_size = 1
+
+# 		self.proj = nn.Sequential(
+# 			nn.Conv2d(embed_dim, out_chans*patch_size**2, kernel_size=kernel_size,
+# 					  padding=kernel_size//2, padding_mode='reflect'),
+# 			nn.PixelShuffle(patch_size)
+# 		)
+
+# 	def forward(self, x):
+# 		x = self.proj(x)
+# 		return x
+	
+
+
+# Encoder decoder 2
 class PatchEmbed(nn.Module):
-	def __init__(self, patch_size=4, in_chans=3, embed_dim=96, kernel_size=None):
-		super().__init__()
-		self.in_chans = in_chans
-		self.embed_dim = embed_dim
+    def __init__(self, patch_size, num_patches, embedding_dim):
+        super(PatchEmbed, self).__init__()
+        self.patch_size = patch_size
+        self.num_patches = num_patches
+        self.embedding_dim = embedding_dim
+        
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=embedding_dim, kernel_size=patch_size, stride=patch_size)
+        self.conv2 = nn.Conv2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
+        self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
 
-		if kernel_size is None:
-			kernel_size = patch_size
-
-		self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=kernel_size, stride=patch_size,
-							  padding=(kernel_size-patch_size+1)//2, padding_mode='reflect')
-
-	def forward(self, x):
-		x = self.proj(x)
-		return x
-
+    def forward(self, inputs):
+        x = self.conv1(inputs)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.pooling(x)
+        return x
 
 class PatchUnEmbed(nn.Module):
-	def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
-		super().__init__()
-		self.out_chans = out_chans
-		self.embed_dim = embed_dim
+    def __init__(self, embedding_dim):
+        super(PatchUnEmbed, self).__init__()
+        self.embedding_dim = embedding_dim
+        
+        self.upsampling = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        self.deconv1 = nn.ConvTranspose2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
+        self.deconv2 = nn.ConvTranspose2d(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=3, stride=1, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(in_channels=embedding_dim, out_channels=3, kernel_size=4, stride=4)
 
-		if kernel_size is None:
-			kernel_size = 1
-
-		self.proj = nn.Sequential(
-			nn.Conv2d(embed_dim, out_chans*patch_size**2, kernel_size=kernel_size,
-					  padding=kernel_size//2, padding_mode='reflect'),
-			nn.PixelShuffle(patch_size)
-		)
-
-	def forward(self, x):
-		x = self.proj(x)
-		return x
+    def forward(self, inputs):
+        x = self.upsampling(inputs)
+        x = self.deconv1(x)
+        x = torch.relu(x)
+        x = self.deconv2(x)
+        x = torch.relu(x)
+        x = self.deconv3(x)
+        x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
+        return x
 
 
 class SKFusion(nn.Module):
