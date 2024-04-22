@@ -407,10 +407,12 @@ class PatchEmbed(nn.Module):
 		
 		if kernel_size == None:
 			kernel_size = patch_size
-        
+
+		print("Padding",(kernel_size-patch_size+1)//2)
+	
 		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
-		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=(kernel_size-patch_size+1)//2, padding_mode='reflect')
-		self.conv3 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=(kernel_size-patch_size+1)//2, padding_mode='reflect')
+		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
+		self.conv3 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
 		self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
 
 	def forward(self, inputs):
