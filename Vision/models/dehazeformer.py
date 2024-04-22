@@ -429,12 +429,12 @@ class PatchUnEmbed(nn.Module):
 		self.embed_dim = embed_dim
 
 		if kernel_size is None:
-			kernel_size = 1
+			kernel_size = 2
 		
 		self.upsampling = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-		self.deconv1 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=1)
-		self.deconv2 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=1)
-		self.deconv3 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=out_chans*patch_size**2, kernel_size=4, stride=4) #*patch_size**2
+		self.deconv1 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=kernel_size, stride=1, padding=1)
+		self.deconv2 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=1, stride=1, padding=1)
+		self.deconv3 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=out_chans, kernel_size=kernel_size, stride=patch_size+1) #*patch_size**2
 
 	def forward(self, inputs):
 		x = self.upsampling(inputs)
@@ -443,7 +443,7 @@ class PatchUnEmbed(nn.Module):
 		x = self.deconv2(x)
 		x = torch.relu(x)
 		x = self.deconv3(x)
-		x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
+		# x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
 		print("Shape=",x.shape)
 		return x
 
@@ -466,9 +466,8 @@ class SKFusion(nn.Module):
 
 	def forward(self, in_feats):
 		B, C, H, W = in_feats[0].shape
-		
-		in_feats = torch.cat(in_feats, dim=1)
 
+		in_feats = torch.cat(in_feats, dim=1);print(in_feats.shape[1],"other shape",self.height * C) 
 		in_feats = in_feats.view(B, self.height, C, H, W)
 		
 		feats_sum = torch.sum(in_feats, dim=1)
@@ -506,7 +505,7 @@ class DehazeFormer(nn.Module):
 					   			 attn_ratio=attn_ratio[0], attn_loc='last', conv_type=conv_type[0])
 
 		self.patch_merge1 = PatchEmbed(
-			patch_size=2, in_chans=embed_dims[0], embed_dim=embed_dims[0])
+			patch_size=2, in_chans=embed_dims[0], embed_dim=embed_dims[1])
 
 		self.skip1 = nn.Conv2d(embed_dims[0], embed_dims[0], 1)
 
@@ -526,7 +525,7 @@ class DehazeFormer(nn.Module):
 								 attn_ratio=attn_ratio[2], attn_loc='last', conv_type=conv_type[2])
 
 		self.patch_split1 = PatchUnEmbed(
-			patch_size=2, out_chans=embed_dims[3], embed_dim=embed_dims[2])
+			patch_size=1, out_chans=embed_dims[3], embed_dim=embed_dims[2])
 
 		assert embed_dims[1] == embed_dims[3]
 		self.fusion1 = SKFusion(embed_dims[3])
@@ -537,7 +536,7 @@ class DehazeFormer(nn.Module):
 								 attn_ratio=attn_ratio[3], attn_loc='last', conv_type=conv_type[3])
 
 		self.patch_split2 = PatchUnEmbed(
-			patch_size=2, out_chans=embed_dims[4], embed_dim=embed_dims[3])
+			patch_size=1, out_chans=embed_dims[4], embed_dim=embed_dims[3])
 
 		assert embed_dims[0] == embed_dims[4]
 		self.fusion2 = SKFusion(embed_dims[4])			
@@ -549,15 +548,15 @@ class DehazeFormer(nn.Module):
 
 		# merge non-overlapping patches into image
 		self.patch_unembed = PatchUnEmbed(
-			patch_size=1, out_chans=out_chans, embed_dim=embed_dims[4], kernel_size=3)
+			patch_size=0, out_chans=out_chans, embed_dim=embed_dims[4], kernel_size=1)
 
 
 	def check_image_size(self, x):
 		# NOTE: for I2I test
-		_, _, h, w = x.size()
+		_, _, h, w = x.size();print("x.size = ",x.size())
 		mod_pad_h = (self.patch_size - h % self.patch_size) % self.patch_size
 		mod_pad_w = (self.patch_size - w % self.patch_size) % self.patch_size
-		x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
+		x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect');print("inseide check = ",x.shape)
 		return x
 
 	def forward_features(self, x):
@@ -578,9 +577,9 @@ class DehazeFormer(nn.Module):
 		x = self.layer4(x)
 		x = self.patch_split2(x)
 		print("Fourth")
-		x = self.fusion2([x, self.skip1(skip1)]) + x
+		x = self.fusion2([x, self.skip1(skip1)]) + x;print("fusion done")
 		x = self.layer5(x)
-		x = self.patch_unembed(x)
+		x = self.patch_unembed(x);print("Final shape = ",x.shape)
 		return x
 
 	def forward(self, x):
@@ -588,8 +587,8 @@ class DehazeFormer(nn.Module):
 		x = self.check_image_size(x)
 
 		feat = self.forward_features(x)
-		K, B = torch.split(feat, (1, 3), dim=1)
-
+		K, B = torch.split(feat, (1, 3), dim=1);print("K=",K.shape,"B=",B.shape,"X=",x.shape)
+  
 		x = K * x - B + x
 		x = x[:, :, :H, :W]
 		return x
