@@ -407,8 +407,6 @@ class PatchEmbed(nn.Module):
 		
 		if kernel_size == None:
 			kernel_size = patch_size
-
-		print("Padding",(kernel_size-patch_size+1)//2)
 	
 		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
 		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
@@ -446,6 +444,7 @@ class PatchUnEmbed(nn.Module):
 		x = torch.relu(x)
 		x = self.deconv3(x)
 		x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
+		print("Shape=",x.shape)
 		return x
 
 
@@ -469,6 +468,7 @@ class SKFusion(nn.Module):
 		B, C, H, W = in_feats[0].shape
 		
 		in_feats = torch.cat(in_feats, dim=1)
+
 		in_feats = in_feats.view(B, self.height, C, H, W)
 		
 		feats_sum = torch.sum(in_feats, dim=1)
@@ -564,19 +564,19 @@ class DehazeFormer(nn.Module):
 		x = self.patch_embed(x)
 		x = self.layer1(x)
 		skip1 = x
-
+		print("First",x.shape)
 		x = self.patch_merge1(x)
 		x = self.layer2(x)
 		skip2 = x
-
+		print("Second",x.shape)
 		x = self.patch_merge2(x)
 		x = self.layer3(x)
 		x = self.patch_split1(x)
-
+		print("Third",x.shape)
 		x = self.fusion1([x, self.skip2(skip2)]) + x
 		x = self.layer4(x)
 		x = self.patch_split2(x)
-
+		print("Fourth")
 		x = self.fusion2([x, self.skip1(skip1)]) + x
 		x = self.layer5(x)
 		x = self.patch_unembed(x)
