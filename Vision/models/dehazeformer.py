@@ -432,8 +432,8 @@ class PatchUnEmbed(nn.Module):
 			kernel_size = 1
 		
 		self.upsampling = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-		self.deconv1 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=kernel_size//2)
-		self.deconv2 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=kernel_size//2)
+		self.deconv1 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=1)
+		self.deconv2 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=1)
 		self.deconv3 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=out_chans*patch_size**2, kernel_size=4, stride=4)
 
 	def forward(self, inputs):
