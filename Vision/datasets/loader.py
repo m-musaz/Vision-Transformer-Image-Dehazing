@@ -90,43 +90,75 @@ def align(imgs=[], size=256):
 
 	return imgs
 
+import torch
+import torch.nn.functional as F
+from PIL import Image
+def resize_image(image, target_size):
+    """
+    Resize image to the target size without cutting or reducing quality.
+    
+    Args:
+    - image (torch.Tensor): Input image tensor with shape (C, H, W).
+    - target_size (tuple): Target size (height, width) for the resized image.
+    
+    Returns:
+    - resized_image (torch.Tensor): Resized image tensor.
+    """
+    # Assuming the input image has shape (C, H, W)
+    # Transpose to (H, W, C) for torchvision's resize function
+    print("datatype = ",image.dtype)
+    image_uint8 = np.clip(image * 255.0, 0, 255).astype(np.uint8)
+
+    # Resize the image using OpenCV
+    resized_image_uint8 = cv2.resize(image_uint8, (target_size[1], target_size[0]), interpolation=cv2.INTER_LINEAR)
+
+    # Convert the resized image back to float32 in the range [0, 1]
+    resized_image = resized_image_uint8.astype(np.float32) / 255.0
+
+    return resized_image
+
 
 class PairLoader(Dataset):
-	def __init__(self, data_dir, sub_dir, mode, size=256, edge_decay=0, only_h_flip=False):
-		assert mode in ['train', 'valid', 'test']
+    def __init__(self, data_dir, sub_dir, mode, size=256, edge_decay=0, only_h_flip=False):
+        assert mode in ['train', 'valid', 'test']
 
-		self.mode = mode
-		self.size = size
-		self.edge_decay = edge_decay
-		self.only_h_flip = only_h_flip
+        self.mode = mode
+        self.size = size
+        self.edge_decay = edge_decay
+        self.only_h_flip = only_h_flip
 
-		self.root_dir = os.path.join(data_dir, sub_dir)
-		self.img_names = sorted(os.listdir(os.path.join(self.root_dir, 'GT')))
-		self.img_num = len(self.img_names)
+        self.root_dir = os.path.join(data_dir, sub_dir)
+        self.img_names = sorted(os.listdir(os.path.join(self.root_dir, 'GT')))
+        self.img_num = len(self.img_names)
 
-	def __len__(self):
-		return self.img_num
+    def __len__(self):
+        return self.img_num
 
-	def __getitem__(self, idx):
-		cv2.setNumThreads(0)
-		cv2.ocl.setUseOpenCL(False)
+    def __getitem__(self, idx):
+        cv2.setNumThreads(0)
+        cv2.ocl.setUseOpenCL(False)
 
-		# read image, and scale [0, 1] to [-1, 1]
-		img_name = self.img_names[idx]
-		source_img = read_img(os.path.join(self.root_dir, 'hazy', img_name)) * 2 - 1
-		target_img = read_img(os.path.join(self.root_dir, 'GT', img_name)) * 2 - 1
+        # read image, and scale [0, 1] to [-1, 1]
+        img_name = self.img_names[idx]
+        source_img = read_img(os.path.join(self.root_dir, 'hazy', img_name)) * 2 - 1
+        target_img = read_img(os.path.join(self.root_dir, 'GT', img_name)) * 2 - 1
 
-		# Apply AHE to source and target images
-		# source_img = apply_clahe(source_img)
-		source_img = source_img
-		
-		if self.mode == 'train':
-			[source_img, target_img] = augment([source_img, target_img], self.size, self.edge_decay, self.only_h_flip)
+        # Apply AHE to source and target images
+        # source_img = apply_clahe(source_img)
+        source_img = source_img
+        
+        if self.mode == 'train':
+            [source_img, target_img] = augment([source_img, target_img], self.size, self.edge_decay, self.only_h_flip)
 
-		if self.mode == 'valid':
-			[source_img, target_img] = align([source_img, target_img], self.size)
+        if self.mode == 'valid':
+            [source_img, target_img] = align([source_img, target_img], self.size)
 
-		return {'source': hwc_to_chw(source_img), 'target': hwc_to_chw(target_img), 'filename': img_name}
+        if self.mode == 'test':
+            source_img = resize_image(source_img,(256, 256))
+            target_img = resize_image(target_img,(256, 256))
+
+        return {'source': hwc_to_chw(source_img), 'target': hwc_to_chw(target_img), 'filename': img_name}
+
 
 class SingleLoader(Dataset):
 	def __init__(self, root_dir):
