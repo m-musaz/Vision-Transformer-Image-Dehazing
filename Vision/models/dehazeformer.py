@@ -444,7 +444,7 @@ class PatchUnEmbed(nn.Module):
 		x = torch.relu(x)
 		x = self.deconv3(x)
 		# x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
-		print("Shape=",x.shape)
+		# print("Shape=",x.shape)
 		return x
 
 
@@ -467,7 +467,7 @@ class SKFusion(nn.Module):
 	def forward(self, in_feats):
 		B, C, H, W = in_feats[0].shape
 
-		in_feats = torch.cat(in_feats, dim=1);print(in_feats.shape[1],"other shape",self.height * C) 
+		in_feats = torch.cat(in_feats, dim=1)#;print(in_feats.shape[1],"other shape",self.height * C) 
 		in_feats = in_feats.view(B, self.height, C, H, W)
 		
 		feats_sum = torch.sum(in_feats, dim=1)
@@ -553,33 +553,33 @@ class DehazeFormer(nn.Module):
 
 	def check_image_size(self, x):
 		# NOTE: for I2I test
-		_, _, h, w = x.size();print("x.size = ",x.size())
+		_, _, h, w = x.size()#;print("x.size = ",x.size())
 		mod_pad_h = (self.patch_size - h % self.patch_size) % self.patch_size
 		mod_pad_w = (self.patch_size - w % self.patch_size) % self.patch_size
-		x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect');print("inseide check = ",x.shape)
+		x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')#;print("inseide check = ",x.shape)
 		return x
 
 	def forward_features(self, x):
 		x = self.patch_embed(x)
 		x = self.layer1(x)
 		skip1 = x
-		print("First",x.shape)
+		# print("First",x.shape)
 		x = self.patch_merge1(x)
 		x = self.layer2(x)
 		skip2 = x
-		print("Second",x.shape)
+		# print("Second",x.shape)
 		x = self.patch_merge2(x)
 		x = self.layer3(x)
 		x = self.patch_split1(x)
-		print("Third",x.shape)
-		print("Third skip2skip2 shape",self.skip2(skip2).shape)
+		# print("Third",x.shape)
+		# print("Third skip2skip2 shape",self.skip2(skip2).shape)
 		x = self.fusion1([x, self.skip2(skip2)]) + x
 		x = self.layer4(x)
 		x = self.patch_split2(x)
-		print("Fourth")
-		x = self.fusion2([x, self.skip1(skip1)]) + x;print("fusion done")
+		# print("Fourth")
+		x = self.fusion2([x, self.skip1(skip1)]) + x#;print("fusion done")
 		x = self.layer5(x)
-		x = self.patch_unembed(x);print("Final shape = ",x.shape)
+		x = self.patch_unembed(x)#;print("Final shape = ",x.shape)
 		return x
 
 	def forward(self, x):
@@ -587,7 +587,7 @@ class DehazeFormer(nn.Module):
 		x = self.check_image_size(x)
 
 		feat = self.forward_features(x)
-		K, B = torch.split(feat, (1, 3), dim=1);print("K=",K.shape,"B=",B.shape,"X=",x.shape)
+		K, B = torch.split(feat, (1, 3), dim=1)#;print("K=",K.shape,"B=",B.shape,"X=",x.shape)
   
 		x = K * x - B + x
 		x = x[:, :, :H, :W]
