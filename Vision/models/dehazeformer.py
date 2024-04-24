@@ -325,6 +325,68 @@ class PatchEmbed(nn.Module):
 		x = self.proj(x)
 		return x
 
+class EncoderBlock(nn.Module):
+	def __init__(self, patch_size=4, in_chans=3, embed_dim=96, kernel_size=None):
+		super(EncoderBlock, self).__init__()
+		self.patch_size = patch_size
+		self.embed_dim = embed_dim
+		
+		if kernel_size == None:
+			kernel_size = patch_size
+	
+		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=3, stride=patch_size)
+		self.bn1 = nn.BatchNorm2d(embed_dim)
+		self.prelu1 = nn.PReLU()
+		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
+		self.bn2 = nn.BatchNorm2d(embed_dim)
+		self.prelu2 = nn.PReLU()
+		self.conv3 = nn.Conv2d(in_channels=embed_dim, out_channels=257, kernel_size=5, stride=1, padding=2, padding_mode='reflect')
+		self.bn3 = nn.BatchNorm2d(257)
+		self.prelu3 = nn.PReLU()
+
+	def forward(self, inputs):
+		x = self.conv1(inputs)
+		x =  self.prelu1(x)
+		x = self.bn1(x)
+		x = self.conv2(x)
+		x =  self.prelu2(x)
+		x = self.bn2(x)
+		x = self.conv3(x)
+		x =  self.prelu3(x)
+		x = self.bn3(x)
+		return x
+
+class DecoderBlock(nn.Module):
+	def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
+		super(DecoderBlock, self).__init__()
+		self.embed_dim = embed_dim;print(out_chans)
+
+		if kernel_size is None:
+			kernel_size = 2
+		
+		self.deconv1 = nn.Conv2d(in_channels=256, out_channels=embed_dim, kernel_size=kernel_size, stride=1, padding=1);print("in chans = ",out_chans*patch_size**2)
+		self.bn1 = nn.BatchNorm2d(embed_dim)
+		self.prelu1 = nn.PReLU()
+		self.deconv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=2, stride=1, padding=1)
+		self.bn2 = nn.BatchNorm2d(embed_dim)
+		self.prelu2 = nn.PReLU()
+		self.deconv3 = nn.Conv2d(in_channels=embed_dim, out_channels=3, kernel_size=2, stride=1)
+		self.bn3 = nn.BatchNorm2d(3)
+		self.prelu3 = nn.PReLU()
+		self.pixelShuffle = nn.PixelShuffle(1)
+  
+	def forward(self, inputs):
+		x = self.deconv1(inputs)
+		x =  self.prelu1(x)
+		x = self.bn1(x)
+		x = self.deconv2(x)
+		x =  self.prelu2(x)
+		x = self.bn2(x)
+		x = self.deconv3(x)
+		x =  self.prelu3(x)
+		x = self.bn3(x)
+		x = self.pixelShuffle(x)
+		return x
 
 class PatchUnEmbed(nn.Module):
 	def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
@@ -392,15 +454,17 @@ class DehazeFormer(nn.Module):
 		self.window_size = window_size
 		self.mlp_ratios = mlp_ratios
 
+		self.encoder = EncoderBlock(patch_size=1, in_chans=3, embed_dim=embed_dims[0], kernel_size=3)
+
 		# split image into non-overlapping patches
 		self.patch_embed = PatchEmbed(
-			patch_size=1, in_chans=in_chans, embed_dim=embed_dims[0], kernel_size=3)
+			patch_size=1, in_chans=257, embed_dim=embed_dims[0], kernel_size=3)
 
 		# backbone
 		self.layer1 = BasicLayer(network_depth=sum(depths), dim=embed_dims[0], depth=depths[0],
-					   			 num_heads=num_heads[0], mlp_ratio=mlp_ratios[0],
-					   			 norm_layer=norm_layer[0], window_size=window_size,
-					   			 attn_ratio=attn_ratio[0], attn_loc='last', conv_type=conv_type[0])
+									num_heads=num_heads[0], mlp_ratio=mlp_ratios[0],
+									norm_layer=norm_layer[0], window_size=window_size,
+									attn_ratio=attn_ratio[0], attn_loc='last', conv_type=conv_type[0])
 
 		self.patch_merge1 = PatchEmbed(
 			patch_size=2, in_chans=embed_dims[0], embed_dim=embed_dims[1])
@@ -408,9 +472,9 @@ class DehazeFormer(nn.Module):
 		self.skip1 = nn.Conv2d(embed_dims[0], embed_dims[0], 1)
 
 		self.layer2 = BasicLayer(network_depth=sum(depths), dim=embed_dims[1], depth=depths[1],
-								 num_heads=num_heads[1], mlp_ratio=mlp_ratios[1],
-								 norm_layer=norm_layer[1], window_size=window_size,
-								 attn_ratio=attn_ratio[1], attn_loc='last', conv_type=conv_type[1])
+									num_heads=num_heads[1], mlp_ratio=mlp_ratios[1],
+									norm_layer=norm_layer[1], window_size=window_size,
+									attn_ratio=attn_ratio[1], attn_loc='last', conv_type=conv_type[1])
 
 		self.patch_merge2 = PatchEmbed(
 			patch_size=2, in_chans=embed_dims[1], embed_dim=embed_dims[2])
@@ -418,9 +482,9 @@ class DehazeFormer(nn.Module):
 		self.skip2 = nn.Conv2d(embed_dims[1], embed_dims[1], 1)
 
 		self.layer3 = BasicLayer(network_depth=sum(depths), dim=embed_dims[2], depth=depths[2],
-								 num_heads=num_heads[2], mlp_ratio=mlp_ratios[2],
-								 norm_layer=norm_layer[2], window_size=window_size,
-								 attn_ratio=attn_ratio[2], attn_loc='last', conv_type=conv_type[2])
+									num_heads=num_heads[2], mlp_ratio=mlp_ratios[2],
+									norm_layer=norm_layer[2], window_size=window_size,
+									attn_ratio=attn_ratio[2], attn_loc='last', conv_type=conv_type[2])
 
 		self.patch_split1 = PatchUnEmbed(
 			patch_size=2, out_chans=embed_dims[3], embed_dim=embed_dims[2])
@@ -429,9 +493,9 @@ class DehazeFormer(nn.Module):
 		self.fusion1 = SKFusion(embed_dims[3])
 
 		self.layer4 = BasicLayer(network_depth=sum(depths), dim=embed_dims[3], depth=depths[3],
-								 num_heads=num_heads[3], mlp_ratio=mlp_ratios[3],
-								 norm_layer=norm_layer[3], window_size=window_size,
-								 attn_ratio=attn_ratio[3], attn_loc='last', conv_type=conv_type[3])
+									num_heads=num_heads[3], mlp_ratio=mlp_ratios[3],
+									norm_layer=norm_layer[3], window_size=window_size,
+									attn_ratio=attn_ratio[3], attn_loc='last', conv_type=conv_type[3])
 
 		self.patch_split2 = PatchUnEmbed(
 			patch_size=2, out_chans=embed_dims[4], embed_dim=embed_dims[3])
@@ -440,13 +504,18 @@ class DehazeFormer(nn.Module):
 		self.fusion2 = SKFusion(embed_dims[4])			
 
 		self.layer5 = BasicLayer(network_depth=sum(depths), dim=embed_dims[4], depth=depths[4],
-					   			 num_heads=num_heads[4], mlp_ratio=mlp_ratios[4],
-					   			 norm_layer=norm_layer[4], window_size=window_size,
-					   			 attn_ratio=attn_ratio[4], attn_loc='last', conv_type=conv_type[4])
+									num_heads=num_heads[4], mlp_ratio=mlp_ratios[4],
+									norm_layer=norm_layer[4], window_size=window_size,
+									attn_ratio=attn_ratio[4], attn_loc='last', conv_type=conv_type[4])
 
 		# merge non-overlapping patches into image
 		self.patch_unembed = PatchUnEmbed(
-			patch_size=1, out_chans=out_chans, embed_dim=embed_dims[4], kernel_size=3)
+			patch_size=1, out_chans=257, embed_dim=embed_dims[4], kernel_size=3)
+    
+		self.channel_down = nn.Conv2d(
+            in_channels=257, out_channels=256, kernel_size=1)
+
+		self.decoder = DecoderBlock(patch_size=1, out_chans=out_chans, embed_dim=embed_dims[4], kernel_size=3)
 
 
 	def check_image_size(self, x):
@@ -458,36 +527,44 @@ class DehazeFormer(nn.Module):
 		return x
 
 	def forward_features(self, x):
+		print("After Encoder shape = ",x.shape)
 		x = self.patch_embed(x)
 		x = self.layer1(x)
 		skip1 = x
-
+		print("After 1 shape = ",x.shape)
 		x = self.patch_merge1(x)
 		x = self.layer2(x)
 		skip2 = x
-
+		print("After 2 shape = ",x.shape)
 		x = self.patch_merge2(x)
 		x = self.layer3(x)
 		x = self.patch_split1(x)
-
+		print("After 3 shape = ",x.shape)
 		x = self.fusion1([x, self.skip2(skip2)]) + x
 		x = self.layer4(x)
 		x = self.patch_split2(x)
-
+		print("After 4 shape = ",x.shape)
 		x = self.fusion2([x, self.skip1(skip1)]) + x
 		x = self.layer5(x)
 		x = self.patch_unembed(x)
+		print("After 5 shape = ",x.shape)
+		# x = self.decoder(x)
+    
+		print("After decoder shape = ",x.shape)
 		return x
 
 	def forward(self, x):
 		H, W = x.shape[2:]
-		x = self.check_image_size(x)
-
+		x = self.check_image_size(x);print("x shape = ",x.shape)
+		x = self.encoder(x)
 		feat = self.forward_features(x)
-		K, B = torch.split(feat, (1, 3), dim=1)
+		x = self.channel_down(x);print("after adjustment",feat.shape)
+		K, B = torch.split(feat, (1, 256), dim=1);print("K shape =",K.shape,"B.shape = ",B.shape)
 
 		x = K * x - B + x
-		x = x[:, :, :H, :W]
+		x = x[:, :, :H, :W];print("After Everything shape = ",x.shape)
+		x = self.decoder(x)
+		print("After decoder shape = ",x.shape)
 		return x
 
 
