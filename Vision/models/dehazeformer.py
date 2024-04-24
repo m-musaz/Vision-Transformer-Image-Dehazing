@@ -327,20 +327,20 @@ class PatchEmbed(nn.Module):
 
 class EncoderBlock(nn.Module):
 	def __init__(self, patch_size=4, in_chans=3, embed_dim=96, kernel_size=None):
-		super(EncoderBlock, self).__init__()
+		super().__init__()
 		self.patch_size = patch_size
 		self.embed_dim = embed_dim
 		
 		if kernel_size == None:
 			kernel_size = patch_size
 	
-		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=3, stride=patch_size)
-		self.bn1 = nn.BatchNorm2d(embed_dim)
+		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=257, kernel_size=3, stride=patch_size)
+		self.bn1 = nn.BatchNorm2d(257)
 		self.prelu1 = nn.PReLU()
-		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
-		self.bn2 = nn.BatchNorm2d(embed_dim)
+		self.conv2 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
+		self.bn2 = nn.BatchNorm2d(257)
 		self.prelu2 = nn.PReLU()
-		self.conv3 = nn.Conv2d(in_channels=embed_dim, out_channels=257, kernel_size=5, stride=1, padding=2, padding_mode='reflect')
+		self.conv3 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=5, stride=1, padding=2, padding_mode='reflect')
 		self.bn3 = nn.BatchNorm2d(257)
 		self.prelu3 = nn.PReLU()
 
@@ -358,22 +358,22 @@ class EncoderBlock(nn.Module):
 
 class DecoderBlock(nn.Module):
 	def __init__(self, patch_size=4, out_chans=3, embed_dim=96, kernel_size=None):
-		super(DecoderBlock, self).__init__()
-		self.embed_dim = embed_dim;print(out_chans)
+		super().__init__()
+		self.embed_dim = embed_dim
 
 		if kernel_size is None:
 			kernel_size = 2
 		
-		self.deconv1 = nn.Conv2d(in_channels=256, out_channels=embed_dim, kernel_size=kernel_size, stride=1, padding=1);print("in chans = ",out_chans*patch_size**2)
-		self.bn1 = nn.BatchNorm2d(embed_dim)
+		self.deconv1 = nn.Conv2d(in_channels=256, out_channels=3, kernel_size=kernel_size, stride=1, padding=1)
+		self.bn1 = nn.BatchNorm2d(3)
 		self.prelu1 = nn.PReLU()
-		self.deconv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=2, stride=1, padding=1)
-		self.bn2 = nn.BatchNorm2d(embed_dim)
+		self.deconv2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, stride=1, padding=1)
+		self.bn2 = nn.BatchNorm2d(3)
 		self.prelu2 = nn.PReLU()
-		self.deconv3 = nn.Conv2d(in_channels=embed_dim, out_channels=3, kernel_size=2, stride=1)
+		self.deconv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, stride=1)
 		self.bn3 = nn.BatchNorm2d(3)
 		self.prelu3 = nn.PReLU()
-		self.pixelShuffle = nn.PixelShuffle(1)
+		# self.pixelShuffle = nn.PixelShuffle(2)
   
 	def forward(self, inputs):
 		x = self.deconv1(inputs)
@@ -385,7 +385,7 @@ class DecoderBlock(nn.Module):
 		x = self.deconv3(x)
 		x =  self.prelu3(x)
 		x = self.bn3(x)
-		x = self.pixelShuffle(x)
+		# x = self.pixelShuffle(x)
 		return x
 
 class PatchUnEmbed(nn.Module):
@@ -555,16 +555,16 @@ class DehazeFormer(nn.Module):
 
 	def forward(self, x):
 		H, W = x.shape[2:]
-		x = self.check_image_size(x);print("x shape = ",x.shape)
+		x = self.check_image_size(x)
 		x = self.encoder(x)
 		feat = self.forward_features(x)
-		x = self.channel_down(x);print("after adjustment",feat.shape)
-		K, B = torch.split(feat, (1, 256), dim=1);print("K shape =",K.shape,"B.shape = ",B.shape)
+		x = self.channel_down(x)
+		K, B = torch.split(feat, (1, 256), dim=1)
 
 		x = K * x - B + x
 		x = x[:, :, :H, :W];print("After Everything shape = ",x.shape)
 		x = self.decoder(x)
-		print("After decoder shape = ",x.shape)
+		# print("After decoder shape = ",x.shape)
 		return x
 
 
