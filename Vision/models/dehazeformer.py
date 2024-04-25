@@ -640,8 +640,8 @@ def dehazeformer_l():
 		conv_type=['Conv', 'Conv', 'Conv', 'Conv', 'Conv'])
     
 if __name__ == '__main__':
-    model = dehazeformer_t()
-    shape = (1, 3, 1728,1152)
+    model = dehazeformer_s()
+    shape = (1, 3, 1600,1200)
     img = torch.randn(*shape)
     output = model(img)
     print(output.shape)
