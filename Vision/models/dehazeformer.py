@@ -337,10 +337,10 @@ class EncoderBlock(nn.Module):
 		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=257, kernel_size=3, stride=patch_size)
 		self.bn1 = nn.BatchNorm2d(257)
 		self.prelu1 = nn.PReLU()
-		self.conv2 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
+		self.conv2 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=3, stride=1, padding=2)
 		self.bn2 = nn.BatchNorm2d(257)
 		self.prelu2 = nn.PReLU()
-		self.conv3 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=5, stride=1, padding=2, padding_mode='reflect')
+		self.conv3 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=5, stride=1, padding=2)
 		self.bn3 = nn.BatchNorm2d(257)
 		self.prelu3 = nn.PReLU()
 
@@ -527,30 +527,30 @@ class DehazeFormer(nn.Module):
 		return x
 
 	def forward_features(self, x):
-		print("After Encoder shape = ",x.shape)
+		# print("After Encoder shape = ",x.shape)
 		x = self.patch_embed(x)
 		x = self.layer1(x)
 		skip1 = x
-		print("After 1 shape = ",x.shape)
+		# print("After 1 shape = ",x.shape)
 		x = self.patch_merge1(x)
 		x = self.layer2(x)
 		skip2 = x
-		print("After 2 shape = ",x.shape)
+		# print("After 2 shape = ",x.shape)
 		x = self.patch_merge2(x)
 		x = self.layer3(x)
 		x = self.patch_split1(x)
-		print("After 3 shape = ",x.shape)
+		# print("After 3 shape = ",x.shape)
 		x = self.fusion1([x, self.skip2(skip2)]) + x
 		x = self.layer4(x)
 		x = self.patch_split2(x)
-		print("After 4 shape = ",x.shape)
+		# print("After 4 shape = ",x.shape)
 		x = self.fusion2([x, self.skip1(skip1)]) + x
 		x = self.layer5(x)
 		x = self.patch_unembed(x)
-		print("After 5 shape = ",x.shape)
+		# print("After 5 shape = ",x.shape)
 		# x = self.decoder(x)
     
-		print("After decoder shape = ",x.shape)
+		# print("After decoder shape = ",x.shape)
 		return x
 
 	def forward(self, x):
@@ -562,7 +562,7 @@ class DehazeFormer(nn.Module):
 		K, B = torch.split(feat, (1, 256), dim=1)
 
 		x = K * x - B + x
-		x = x[:, :, :H, :W];print("After Everything shape = ",x.shape)
+		x = x[:, :, :H, :W]#;print("After Everything shape = ",x.shape)
 		x = self.decoder(x)
 		# print("After decoder shape = ",x.shape)
 		return x
