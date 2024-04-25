@@ -334,13 +334,13 @@ class EncoderBlock(nn.Module):
 		if kernel_size == None:
 			kernel_size = patch_size
 	
-		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=257, kernel_size=3, stride=patch_size)
+		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=257, kernel_size=2, stride=2)
 		self.bn1 = nn.BatchNorm2d(257)
 		self.prelu1 = nn.PReLU()
-		self.conv2 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=3, stride=1, padding=2)
+		self.conv2 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=3, stride=1, padding=1)
 		self.bn2 = nn.BatchNorm2d(257)
 		self.prelu2 = nn.PReLU()
-		self.conv3 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=5, stride=1, padding=2)
+		self.conv3 = nn.Conv2d(in_channels=257, out_channels=257, kernel_size=3, stride=1, padding=1)
 		self.bn3 = nn.BatchNorm2d(257)
 		self.prelu3 = nn.PReLU()
 
@@ -364,16 +364,16 @@ class DecoderBlock(nn.Module):
 		if kernel_size is None:
 			kernel_size = 2
 		
-		self.deconv1 = nn.Conv2d(in_channels=256, out_channels=3, kernel_size=kernel_size, stride=1, padding=1)
+		self.deconv1 = nn.Conv2d(in_channels=256, out_channels=3, kernel_size=1, stride=1)
 		self.bn1 = nn.BatchNorm2d(3)
 		self.prelu1 = nn.PReLU()
 		self.deconv2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, stride=1, padding=1)
 		self.bn2 = nn.BatchNorm2d(3)
 		self.prelu2 = nn.PReLU()
-		self.deconv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, stride=1)
-		self.bn3 = nn.BatchNorm2d(3)
+		self.deconv3 = nn.Conv2d(in_channels=3, out_channels=12, kernel_size=2, stride=1)
+		self.bn3 = nn.BatchNorm2d(12)
 		self.prelu3 = nn.PReLU()
-		# self.pixelShuffle = nn.PixelShuffle(2)
+		self.pixelShuffle = nn.PixelShuffle(2)
   
 	def forward(self, inputs):
 		x = self.deconv1(inputs)
@@ -385,7 +385,7 @@ class DecoderBlock(nn.Module):
 		x = self.deconv3(x)
 		x =  self.prelu3(x)
 		x = self.bn3(x)
-		# x = self.pixelShuffle(x)
+		x = self.pixelShuffle(x)
 		return x
 
 class PatchUnEmbed(nn.Module):
@@ -527,27 +527,27 @@ class DehazeFormer(nn.Module):
 		return x
 
 	def forward_features(self, x):
-		# print("After Encoder shape = ",x.shape)
+		print("After Encoder shape = ",x.shape)
 		x = self.patch_embed(x)
 		x = self.layer1(x)
 		skip1 = x
-		# print("After 1 shape = ",x.shape)
+		print("After 1 shape = ",x.shape)
 		x = self.patch_merge1(x)
 		x = self.layer2(x)
 		skip2 = x
-		# print("After 2 shape = ",x.shape)
+		print("After 2 shape = ",x.shape)
 		x = self.patch_merge2(x)
 		x = self.layer3(x)
 		x = self.patch_split1(x)
-		# print("After 3 shape = ",x.shape)
+		print("After 3 shape = ",x.shape)
 		x = self.fusion1([x, self.skip2(skip2)]) + x
 		x = self.layer4(x)
 		x = self.patch_split2(x)
-		# print("After 4 shape = ",x.shape)
+		print("After 4 shape = ",x.shape)
 		x = self.fusion2([x, self.skip1(skip1)]) + x
 		x = self.layer5(x)
 		x = self.patch_unembed(x)
-		# print("After 5 shape = ",x.shape)
+		print("After 5 shape = ",x.shape)
 		# x = self.decoder(x)
     
 		# print("After decoder shape = ",x.shape)
@@ -560,11 +560,13 @@ class DehazeFormer(nn.Module):
 		feat = self.forward_features(x)
 		x = self.channel_down(x)
 		K, B = torch.split(feat, (1, 256), dim=1)
+		print("K = ",K.shape,"B = ",B.shape,"X = ",x.shape)
 
 		x = K * x - B + x
-		x = x[:, :, :H, :W]#;print("After Everything shape = ",x.shape)
+		x = x[:, :, :H, :W]
+		print("After Everything shape = ",x.shape)
 		x = self.decoder(x)
-		# print("After decoder shape = ",x.shape)
+		print("After decoder shape = ",x.shape)
 		return x
 
 
@@ -636,3 +638,10 @@ def dehazeformer_l():
 		num_heads=[2, 4, 6, 1, 1],
 		attn_ratio=[1/4, 1/2, 3/4, 0, 0],
 		conv_type=['Conv', 'Conv', 'Conv', 'Conv', 'Conv'])
+    
+if __name__ == '__main__':
+    model = dehazeformer_b()
+    shape = (1, 3, 1728,1152)
+    img = torch.randn(*shape)
+    output = model(img)
+    print(output.shape)
