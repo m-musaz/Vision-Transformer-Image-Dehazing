@@ -90,9 +90,16 @@ def align(imgs=[], size=256):
 
 	return imgs
 
-import torch
-import torch.nn.functional as F
-from PIL import Image
+def closest_higher_multiple_of_256(number):
+    # Calculate the remainder when dividing the number by 256
+    remainder = number % 256
+    
+    # Calculate the closest lower multiple of 256
+    closest_multiple = number - remainder
+    
+    return closest_multiple
+
+
 def resize_image(image, target_size):
     """
     Resize image to the target size without cutting or reducing quality.
@@ -110,7 +117,7 @@ def resize_image(image, target_size):
     image_uint8 = np.clip(image * 255.0, 0, 255).astype(np.uint8)
 
     # Resize the image using OpenCV
-    resized_image_uint8 = cv2.resize(image_uint8, (target_size[1], target_size[0]), interpolation=cv2.INTER_LINEAR)
+    resized_image_uint8 = cv2.resize(image_uint8, (closest_higher_multiple_of_256(image.shape[1]), closest_higher_multiple_of_256(image.shape[0])), interpolation=cv2.INTER_LINEAR)
 
     # Convert the resized image back to float32 in the range [0, 1]
     resized_image = resized_image_uint8.astype(np.float32) / 255.0
