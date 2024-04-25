@@ -113,11 +113,10 @@ def resize_image(image, target_size):
     """
     # Assuming the input image has shape (C, H, W)
     # Transpose to (H, W, C) for torchvision's resize function
-    print("datatype = ",image.dtype)
     image_uint8 = np.clip(image * 255.0, 0, 255).astype(np.uint8)
 
     # Resize the image using OpenCV
-    resized_image_uint8 = cv2.resize(image_uint8, (closest_higher_multiple_of_256(image.shape[1]), closest_higher_multiple_of_256(image.shape[0])), interpolation=cv2.INTER_LINEAR)
+    resized_image_uint8 = cv2.resize(image_uint8, (closest_higher_multiple_of_256(image.shape[1]), closest_higher_multiple_of_256(image.shape[0])), interpolation=cv2.INTER_LANCZOS4)
 
     # Convert the resized image back to float32 in the range [0, 1]
     resized_image = resized_image_uint8.astype(np.float32) / 255.0
