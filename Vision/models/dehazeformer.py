@@ -409,20 +409,17 @@ class PatchEmbed(nn.Module):
 			kernel_size = patch_size
 	
 		self.conv1 = nn.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
-		self.prelu1 = nn.PReLU()
 		self.conv2 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
-		self.prelu2 = nn.PReLU()
 		self.conv3 = nn.Conv2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=3, stride=1, padding=2, padding_mode='reflect')
-		self.prelu3 = nn.PReLU()
 		self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
 
 	def forward(self, inputs):
 		x = self.conv1(inputs)
-		x = self.prelu1(x)
+		x = F.relu(x)
 		x = self.conv2(x)
-		x = self.prelu2(x)
+		x = F.relu(x)
 		x = self.conv3(x)
-		x = self.prelu3(x)
+		x = F.relu(x)
 		x = self.pooling(x)
 		return x
 # patch_size=1, out_chans=out_chans, embed_dim=embed_dims[4], kernel_size=3
@@ -436,17 +433,15 @@ class PatchUnEmbed(nn.Module):
 		
 		self.upsampling = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 		self.deconv1 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=kernel_size, stride=1, padding=1)
-		self.prelu1 = nn.PReLU()
 		self.deconv2 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=embed_dim, kernel_size=1, stride=1, padding=1)
-		self.prelu2 = nn.PReLU()
 		self.deconv3 = nn.ConvTranspose2d(in_channels=embed_dim, out_channels=out_chans, kernel_size=kernel_size, stride=patch_size+1) #*patch_size**2
 
 	def forward(self, inputs):
 		x = self.upsampling(inputs)
 		x = self.deconv1(x)
-		x = self.prelu1(x)
+		x = torch.relu(x)
 		x = self.deconv2(x)
-		x = self.prelu2(x)
+		x = torch.relu(x)
 		x = self.deconv3(x)
 		# x = torch.sigmoid(x)  # Applying sigmoid to ensure output pixel values are between 0 and 1
 		# print("Shape=",x.shape)
@@ -667,11 +662,3 @@ def dehazeformer_l():
 		num_heads=[2, 4, 6, 1, 1],
 		attn_ratio=[1/4, 1/2, 3/4, 0, 0],
 		conv_type=['Conv', 'Conv', 'Conv', 'Conv', 'Conv'])
-    
-    
-# if __name__ == '__main__':
-#     model = dehazeformer_t()
-#     shape = (2, 3, 1536, 1024)
-#     img = torch.randn(*shape)
-#     output = model(img)
-#     print(output.shape)
