@@ -132,6 +132,7 @@ if __name__ == '__main__':
 
 			if epoch % setting['eval_freq'] == 0:
 				avg_psnr = valid(val_loader, network)
+				print('Epoch: %d, PSNR: %.2f' % (epoch, avg_psnr))
 				
 				writer.add_scalar('valid_psnr', avg_psnr, epoch)
 
