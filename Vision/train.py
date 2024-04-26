@@ -109,7 +109,7 @@ if __name__ == '__main__':
 	network = eval(args.model.replace('-', '_'))()
 	network = nn.DataParallel(network).cuda()
 
-	criterion = CombinedLoss()
+	criterion = nn.MSELoss()
 
 	if setting['optimizer'] == 'adam':
 		optimizer = torch.optim.Adam(network.parameters(), lr=setting['lr'])
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 		best_psnr = 0
 		for epoch in tqdm(range(setting['epochs'] + 1)):
 			loss = train(train_loader, network, criterion, optimizer, scaler)
-
+			print('Epoch: %d, Loss: %.4f' % (epoch, loss))
 			writer.add_scalar('train_loss', loss, epoch)
 
 			scheduler.step()
