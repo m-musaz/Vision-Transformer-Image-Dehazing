@@ -51,6 +51,6 @@ The model was trained on a dataset containing 400 hazy and corresponding clear i
 To run this project locally:
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/your-username/Vision-Transformer-Image-Dehazing.git
+cd Vision-Transformer-Image-Dehazing
 pip install -r requirements.txt
